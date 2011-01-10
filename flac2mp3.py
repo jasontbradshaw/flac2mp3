@@ -29,28 +29,13 @@ def transcode(infile):
     # get a new file name for the mp3 based on the input file's name
     mp3_filename = get_changed_file_ext(infile, ".mp3")
 
-    # get the tags from the input file and ensure required fields are present
+    # get the tags from the input file
     flac_tags = get_tags(infile)
 
-    if "TITLE" not in flac_tags:
-        flac_tags["TITLE"] = "<na>"
-    if "ARTIST" not in flac_tags:
-        flac_tags["ARTIST"] = "<na>"
-    if "ALBUM" not in flac_tags:
-        flac_tags["ALBUM"] = "<na>"
-    if "YEAR" not in flac_tags:
-        flac_tags["YEAR"] = "1"
-    if "COMMENT" not in flac_tags:
-        flac_tags["COMMENT"] = ""
-    if "TRACKNUMBER" not in flac_tags:
-        flac_tags["TRACKNUMBER"] = "0"
-    if "TRACKTOTAL" not in flac_tags:
-        flac_tags["TRACKTOTAL"] = "0"
-
-    # arguments for lame, including bitrate and tag creation
+    # arguments for 'lame', including bitrate and tag values
     bitrate = 320
     lame_args = ["lame", "-h", "-m", "s", "--cbr", "-b", str(bitrate),
-            "--add-id3v2",
+            "--add-id3v2", "--silent",
             "--tt", flac_tags["TITLE"],
             "--ta", flac_tags["ARTIST"],
             "--tl", flac_tags["ALBUM"],
@@ -60,7 +45,12 @@ def transcode(infile):
             "--tg", flac_tags["GENRE"],
             flacdata_filename, mp3_filename]
 
-    # encode the file using 'lame'
+    # encode the file using 'lame' and wait for it to finish
+    p_lame = sp.Popen(lame_args)
+    p_lame.wait()
+
+    # remove the temporary data file
+    os.unlink(flacdata_filename)
 
 def get_changed_file_ext(fname, ext):
     """
@@ -83,7 +73,9 @@ def get_changed_file_ext(fname, ext):
 
 def get_tags(infile):
     """
-    Gets the flac tags from the given file and returns them as a dict.
+    Gets the flac tags from the given file and returns them as a dict.  Ensures
+    a minimun set of id3v2 tags is available, giving them default values if
+    these tags aren't found in the orininal file.
     """
 
     # get tag info text using 'metaflac'
@@ -100,8 +92,24 @@ def get_tags(infile):
     for t in re.findall(pattern, metaflac_text):
         tag_dict[t[0]] = t[1]
 
+    # ensure all possible id3v2 tags are present, giving them default values if
+    # not.
+    if "TITLE" not in tag_dict:
+        tag_dict["TITLE"] = "NONE"
+    if "ARTIST" not in tag_dict:
+        tag_dict["ARTIST"] = "NONE"
+    if "ALBUM" not in tag_dict:
+        tag_dict["ALBUM"] = "NONE"
+    if "YEAR" not in tag_dict:
+        tag_dict["YEAR"] = "1"
+    if "COMMENT" not in tag_dict:
+        tag_dict["COMMENT"] = ""
+    if "TRACKNUMBER" not in tag_dict:
+        tag_dict["TRACKNUMBER"] = "00"
+    if "TRACKTOTAL" not in tag_dict:
+        tag_dict["TRACKTOTAL"] = "00"
+
     return tag_dict
 
 if __name__ == "__main__":
-    get_tags("song.flac")
     transcode("song.flac")
