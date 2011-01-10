@@ -35,7 +35,7 @@ def transcode(infile):
             "--tl", flac_tags["ALBUM"],
             "--ty", flac_tags["DATE"],
             "--tc", flac_tags["COMMENT"],
-            "--tn", flac_tags["TRACKNUMBER"] + "\\" + flac_tags["TRACKTOTAL"],
+            "--tn", flac_tags["TRACKNUMBER"] + "/" + flac_tags["TRACKTOTAL"],
             "--tg", flac_tags["GENRE"],
             "-", mp3_filename]
 
