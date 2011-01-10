@@ -39,7 +39,7 @@ def transcode(infile):
             "--tt", flac_tags["TITLE"],
             "--ta", flac_tags["ARTIST"],
             "--tl", flac_tags["ALBUM"],
-            "--ty", flac_tags["YEAR"],
+            "--ty", flac_tags["DATE"],
             "--tc", flac_tags["COMMENT"],
             "--tn", flac_tags["TRACKNUMBER"] + "\\" + flac_tags["TRACKTOTAL"],
             "--tg", flac_tags["GENRE"],
@@ -50,7 +50,9 @@ def transcode(infile):
     p_lame.wait()
 
     # remove the temporary data file
-    os.unlink(flacdata_filename)
+    os.remove(flacdata_filename)
+
+    print "Finished transcoding '%s' to '%s'." % (infile, mp3_filename)
 
 def get_changed_file_ext(fname, ext):
     """
@@ -63,7 +65,7 @@ def get_changed_file_ext(fname, ext):
     new_fname = fname
 
     # if we have a file extension, strip the final one and get the base name
-    if len(fname.split(".")) >= 2:
+    if len(fname.rsplit(".", 1)) == 2:
         new_fname = fname.rsplit(".", 1)[0]
 
     # add the new extension
@@ -100,8 +102,8 @@ def get_tags(infile):
         tag_dict["ARTIST"] = "NONE"
     if "ALBUM" not in tag_dict:
         tag_dict["ALBUM"] = "NONE"
-    if "YEAR" not in tag_dict:
-        tag_dict["YEAR"] = "1"
+    if "DATE" not in tag_dict:
+        tag_dict["DATE"] = "1"
     if "COMMENT" not in tag_dict:
         tag_dict["COMMENT"] = ""
     if "TRACKNUMBER" not in tag_dict:
@@ -111,5 +113,60 @@ def get_tags(infile):
 
     return tag_dict
 
+def walk_dir(d, follow_links=False):
+    """
+    Returns all the file names in a given directory, including those in
+    subdirectories.  if 'follow_links' is True, symbolic links will be followed.
+    This option can lead to infinite looping since the function doesn't keep
+    track of which directories have been visited.
+    """
+
+    # attempt to get the files in the given directory, returning an empty list
+    # if it failed.
+    contents = []
+    try:
+        contents = os.listdir(d)
+        
+        # add original directory name to every listed file
+        contents = map(lambda x: os.path.join(d, x), contents)
+    except OSError:
+        return []
+
+    # normalize all returned file names
+    contents = map(os.path.abspath, contents)
+
+    # add all file names to a list recursively
+    new_files = []
+    for f in contents:
+        # skip links if specified
+        if not follow_links and os.path.islink(f):
+            pass
+
+        # add all the files under a dir to the list
+        if os.path.isdir(f):
+            new_files.extend(walk_dir(f, follow_links=follow_links))
+        # add files to the list
+        else:
+            new_files.append(f)
+
+    return new_files
+
 if __name__ == "__main__":
-    transcode("song.flac")
+    import sys
+
+    # get the number of threads we should use while transcoding (usually twice
+    # the number of processors, or 2 if that number can't be determined).
+    thread_count = 2
+    try:
+        thread_count = 2 * mp.cpu_count()
+    except NotImplementedError:
+        pass
+    
+    # find all the flac files in the given directory
+    args = sys.argv
+    flacfiles = filter(lambda x: x.lower().endswith(".flac"), walk_dir(args[1]))
+
+    # transcode all the found files
+    pool = mp.Pool(processes=thread_count)
+    result = pool.map_async(transcode, flacfiles)
+    result.get()
