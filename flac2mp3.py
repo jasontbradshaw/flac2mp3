@@ -39,13 +39,14 @@ def transcode(infile):
             "--tg", flac_tags["GENRE"],
             "-", mp3_filename]
 
+
     # encode the file using 'lame' and wait for it to finish
     p_lame = sp.Popen(lame_args, stdin=sp.PIPE)
 
     # pass 'lame' the decoded sound data via stdin
     p_lame.communicate(flac_data)
 
-    print "Finished transcoding '%s' to '%s'." % (infile, mp3_filename)
+    print "Transcoded '%s'." % os.path.basename(infile)
 
 def get_tags(infile):
     """
