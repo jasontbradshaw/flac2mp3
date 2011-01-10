@@ -2,7 +2,6 @@
 
 import os
 import re
-import tempfile
 import subprocess as sp
 import multiprocessing as mp
 
@@ -18,13 +17,6 @@ def transcode(infile):
     flac_args = ["flac", "--silent", "-c", "-d", infile]
     p_flac = sp.Popen(flac_args, stdout=sp.PIPE)
     flac_data = p_flac.communicate()[0]
-
-    # write the decoded flac data to a temporary file, saving the file name for
-    # use later with 'lame'
-    flacdata_filename = None
-    with tempfile.NamedTemporaryFile(prefix="flacdata_", delete=False) as f:
-        flacdata_filename = f.name
-        f.write(flac_data)
 
     # get a new file name for the mp3 based on the input file's name
     mp3_filename = get_changed_file_ext(infile, ".mp3")
@@ -43,11 +35,13 @@ def transcode(infile):
             "--tc", flac_tags["COMMENT"],
             "--tn", flac_tags["TRACKNUMBER"] + "\\" + flac_tags["TRACKTOTAL"],
             "--tg", flac_tags["GENRE"],
-            flacdata_filename, mp3_filename]
+            "-", mp3_filename]
 
     # encode the file using 'lame' and wait for it to finish
-    p_lame = sp.Popen(lame_args)
-    p_lame.wait()
+    p_lame = sp.Popen(lame_args, stdin=sp.PIPE)
+
+    # pass 'lame' the decoded sound data via stdin
+    p_lame.communicate(flac_data)
 
     # remove the temporary data file
     os.remove(flacdata_filename)
@@ -126,7 +120,7 @@ def walk_dir(d, follow_links=False):
     contents = []
     try:
         contents = os.listdir(d)
-        
+
         # add original directory name to every listed file
         contents = map(lambda x: os.path.join(d, x), contents)
     except OSError:
@@ -161,9 +155,10 @@ if __name__ == "__main__":
         thread_count = 2 * mp.cpu_count()
     except NotImplementedError:
         pass
-    
+
     # find all the flac files in the given directory
     args = sys.argv
+
     flacfiles = filter(lambda x: x.lower().endswith(".flac"), walk_dir(args[1]))
 
     # transcode all the found files
