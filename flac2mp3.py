@@ -91,14 +91,6 @@ def get_tags(infile):
 if __name__ == "__main__":
     import sys
 
-    # get the number of threads we should use while transcoding (usually twice
-    # the number of processors, or 2 if that number can't be determined).
-    thread_count = 2
-    try:
-        thread_count = 2 * mp.cpu_count()
-    except NotImplementedError:
-        pass
-
     # add all the files/directories in the args recursively
     flacfiles = []
     for f in sys.argv[1:]:
@@ -114,6 +106,14 @@ if __name__ == "__main__":
     # remove duplicates and sort resulting list
     flacfiles = list(set(flacfiles))
     flacfiles.sort()
+
+    # get the number of threads we should use while transcoding (usually twice
+    # the number of processors, or 2 if that number can't be determined).
+    thread_count = 2
+    try:
+        thread_count = 2 * mp.cpu_count()
+    except NotImplementedError:
+        pass
 
     # transcode all the found files
     pool = mp.Pool(processes=thread_count)
