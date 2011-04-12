@@ -111,27 +111,20 @@ def get_tags(infile):
     # tuples like ('TITLE', 'Misery'), then stores them in a dict.
     pattern = "\s+comment\[\d+\]:\s+([^=]+)=([^\n]+)\n"
 
+    # ensure all possible id3v2 tags start off with a default value
+    tag_dict = {
+        "TITLE": "NONE",
+        "ARTIST": "NONE",
+        "ALBUM": "NONE",
+        "DATE": "1",
+        "COMMENT": "",
+        "TRACKNUMER": "00",
+        "TRACKTOTAL": "00"
+    }
+
     # get the comment data from the obtained text
-    tag_dict = {}
     for t in re.findall(pattern, metaflac_text):
         tag_dict[t[0]] = t[1]
-
-    # ensure all possible id3v2 tags are present, giving them default values if
-    # not.
-    if "TITLE" not in tag_dict:
-        tag_dict["TITLE"] = "NONE"
-    if "ARTIST" not in tag_dict:
-        tag_dict["ARTIST"] = "NONE"
-    if "ALBUM" not in tag_dict:
-        tag_dict["ALBUM"] = "NONE"
-    if "DATE" not in tag_dict:
-        tag_dict["DATE"] = "1"
-    if "COMMENT" not in tag_dict:
-        tag_dict["COMMENT"] = ""
-    if "TRACKNUMBER" not in tag_dict:
-        tag_dict["TRACKNUMBER"] = "00"
-    if "TRACKTOTAL" not in tag_dict:
-        tag_dict["TRACKTOTAL"] = "00"
 
     return tag_dict
 
