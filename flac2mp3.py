@@ -86,14 +86,11 @@ def transcode(infile):
             "--tg", flac_tags["GENRE"],
             "-", mp3_filename]
 
-
     # encode the file using 'lame' and wait for it to finish
     p_lame = sp.Popen(lame_args, stdin=sp.PIPE)
 
     # pass 'lame' the decoded sound data via stdin
     p_lame.communicate(flac_data)
-
-    print "Transcoded '%s'." % os.path.basename(infile)
 
 def get_tags(infile):
     """
@@ -130,6 +127,7 @@ def get_tags(infile):
 
 if __name__ == "__main__":
     import sys
+    import time
 
     # add all the files/directories in the args recursively
     flacfiles = []
@@ -155,7 +153,24 @@ if __name__ == "__main__":
     except NotImplementedError:
         pass
 
+    def transcode_with_printout(f):
+        """
+        Transcode the given file and print out progress statistics.
+        """
+
+        # a more compact file name relative to the current directory
+        short_fname = os.path.relpath(f)
+        print "Transcoding '%s'..." % short_fname
+
+        # time the transcode
+        start_time = time.time()
+        transcode(f)
+        total_time = time.time() - start_time
+
+        print "Transcoded '%s' in %.2f seconds" % (short_fname, total_time)
+
     # transcode all the found files
+    # TODO: handle Ctrl+C while mapping, currently becomes a broken zombie
     pool = mp.Pool(processes=thread_count)
-    result = pool.map_async(transcode, flacfiles)
+    result = pool.map_async(transcode_with_printout, flacfiles)
     result.get()
