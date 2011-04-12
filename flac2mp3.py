@@ -27,40 +27,21 @@ def get_changed_file_ext(fname, ext):
 def walk_dir(d, follow_links=False):
     """
     Returns all the file names in a given directory, including those in
-    subdirectories.  if 'follow_links' is True, symbolic links will be followed.
+    subdirectories.  If 'follow_links' is True, symbolic links will be followed.
     This option can lead to infinite looping since the function doesn't keep
     track of which directories have been visited.
     """
 
-    # attempt to get the files in the given directory, returning an empty list
-    # if it failed for any reason.
+    # walk the directory and collect the full path of every file therein
     contents = []
-    try:
-        contents = os.listdir(d)
-    except OSError:
-        return []
-
-    # add original directory name to every listed file
-    contents = map(lambda x: os.path.join(d, x), contents)
+    for root, dirs, files in os.walk(d, followlinks=follow_links):
+        for name in files:
+            contents.append(os.path.join(root, name))
 
     # normalize all file names
     contents = map(os.path.abspath, contents)
 
-    # add all file names to a list recursively
-    new_files = []
-    for f in contents:
-        # skip links if specified
-        if not follow_links and os.path.islink(f):
-            continue
-
-        # add all the files under a dir to the list
-        if os.path.isdir(f):
-            new_files.extend(walk_dir(f, follow_links=follow_links))
-        # add files to the list
-        else:
-            new_files.append(f)
-
-    return new_files
+    return contents
 
 def get_filetype(fname):
     """
