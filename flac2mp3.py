@@ -115,8 +115,9 @@ def get_tags(infile):
         "ALBUM": "NONE",
         "DATE": "1",
         "COMMENT": "",
-        "TRACKNUMER": "00",
-        "TRACKTOTAL": "00"
+        "TRACKNUMBER": "00",
+        "TRACKTOTAL": "00",
+        "GENRE": "NONE"
     }
 
     # get the comment data from the obtained text
