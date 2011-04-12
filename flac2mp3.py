@@ -129,6 +129,8 @@ if __name__ == "__main__":
     import sys
     import time
 
+    print "Enumerating files..."
+
     # add all the files/directories in the args recursively
     flacfiles = []
     for f in sys.argv[1:]:
@@ -169,8 +171,15 @@ if __name__ == "__main__":
 
         print "Transcoded '%s' in %.2f seconds" % (short_fname, total_time)
 
+    number_word = "files" if len(flacfiles) != 1 else "file"
+    print "Beginning transcode of %d %s..." % (len(flacfiles), number_word)
+    overall_start_time = time.time()
+
     # transcode all the found files
     # TODO: handle Ctrl+C while mapping, currently becomes a broken zombie
     pool = mp.Pool(processes=thread_count)
     result = pool.map_async(transcode_with_printout, flacfiles)
     result.get()
+
+    overall_time = time.time() - overall_start_time
+    print "Completed transcode in %.2f seconds" % overall_time
