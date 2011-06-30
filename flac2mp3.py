@@ -104,10 +104,6 @@ def get_tags(infile):
     p_metaflac = sp.Popen(metaflac_args, stdout=sp.PIPE)
     metaflac_text = p_metaflac.communicate()[0]
 
-    # matches all lines like 'comment[0]: TITLE=Misery' and extracts them to
-    # tuples like ('TITLE', 'Misery'), then stores them in a dict.
-    pattern = "\s+comment\[\d+\]:\s+([^=]+)=([^\n]+)\n"
-
     # ensure all possible id3v2 tags start off with a default value
     tag_dict = {
         "TITLE": "NONE",
@@ -119,6 +115,10 @@ def get_tags(infile):
         "TRACKTOTAL": "00",
         "GENRE": "NONE"
     }
+
+    # matches all lines like 'comment[0]: TITLE=Misery' and extracts them to
+    # tuples like ('TITLE', 'Misery'), then stores them in a dict.
+    pattern = "\s+comment\[\d+\]:\s+([^=]+)=([^\n]+)\n"
 
     # get the comment data from the obtained text
     for t in re.findall(pattern, metaflac_text):
