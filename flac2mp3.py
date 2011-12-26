@@ -3,6 +3,7 @@
 import os
 import re
 import subprocess as sp
+import sys
 import multiprocessing as mp
 
 def get_changed_file_ext(fname, ext):
@@ -49,7 +50,13 @@ def get_filetype(fname):
     """
 
     # brief output, MIME version
-    file_args = ["file", "-b", "-i", fname]
+    file_args = ["file", "-b"]
+    if sys.platform == "darwin":
+        file_args.append("-I")
+    else:
+        file_args.append("-i")
+    file_args.append(fname)
+
     p_file = sp.Popen(file_args, stdout=sp.PIPE)
 
     return p_file.communicate()[0]
