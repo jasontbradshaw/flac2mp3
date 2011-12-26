@@ -134,7 +134,6 @@ def get_tags(infile):
     return tag_dict
 
 if __name__ == "__main__":
-    import sys
     import time
 
     print "Enumerating files..."
@@ -155,11 +154,11 @@ if __name__ == "__main__":
     flacfiles = list(set(flacfiles))
     flacfiles.sort()
 
-    # get the number of threads we should use while transcoding (usually twice
-    # the number of processors, or 2 if that number can't be determined).
-    thread_count = 2
+    # get the number of threads we should use while transcoding (usually the
+    # number of processors, or 1 if that number can't be determined).
+    thread_count = 1
     try:
-        thread_count = 2 * mp.cpu_count()
+        thread_count = mp.cpu_count()
     except NotImplementedError:
         pass
 
