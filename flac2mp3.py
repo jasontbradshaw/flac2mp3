@@ -150,9 +150,8 @@ if __name__ == "__main__":
     is_flac_file = lambda x: get_filetype(x).count("audio/x-flac") > 0
     flacfiles = filter(is_flac_file, flacfiles)
 
-    # remove duplicates and sort resulting list
-    flacfiles = list(set(flacfiles))
-    flacfiles.sort()
+    # remove duplicates and sort
+    flacfiles = sorted(set(flacfiles))
 
     # get the number of threads we should use while transcoding (usually the
     # number of processors, or 1 if that number can't be determined).
