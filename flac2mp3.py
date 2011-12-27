@@ -6,24 +6,6 @@ import subprocess as sp
 import sys
 import multiprocessing as mp
 
-def try_communicate(process, message=None):
-    """
-    Wraps a call to Popen.communicate to catch KeyboardInterrupt
-    exceptions, and returns None if one was caught. If message is not None,
-    passes the message in.
-
-    Prevents spewing horrible
-    stacktraces when interrupting during long communicate calls.
-    """
-
-    try:
-        if message is not None:
-            return process.communicate(message)[0]
-        else:
-            return process.communicate()[0]
-    except KeyboardInterrupt:
-        return None
-
 def get_changed_file_ext(fname, ext):
     """
     Transforms the given filename's extension to the given extension. 'ext' is
@@ -77,7 +59,7 @@ def get_filetype(fname):
 
     p_file = sp.Popen(file_args, stdout=sp.PIPE)
 
-    return try_communicate(p_file)
+    return p_file.communicate()[0]
 
 def transcode(infile, outfile=None):
     """
@@ -92,7 +74,7 @@ def transcode(infile, outfile=None):
     # string.
     flac_args = ["flac", "--silent", "-c", "-d", infile]
     p_flac = sp.Popen(flac_args, stdout=sp.PIPE)
-    flac_data = try_communicate(p_flac)
+    flac_data = p_flac.communicate()[0]
 
     # get a new file name for the mp3 if no output name was specified
     if outfile is None:
@@ -118,7 +100,7 @@ def transcode(infile, outfile=None):
     p_lame = sp.Popen(lame_args, stdin=sp.PIPE)
 
     # pass 'lame' the decoded sound data via stdin
-    try_communicate(p_lame, flac_data)
+    p_lame.communicate(flac_data)
 
 def get_tags(infile):
     """
@@ -130,7 +112,7 @@ def get_tags(infile):
     # get tag info text using 'metaflac'
     metaflac_args = ["metaflac", "--list", "--block-type=VORBIS_COMMENT", infile]
     p_metaflac = sp.Popen(metaflac_args, stdout=sp.PIPE)
-    metaflac_text = try_communicate(p_metaflac)
+    metaflac_text = p_metaflac.communicate()[0]
 
     # ensure all possible id3v2 tags start off with a default value
     tag_dict = {
@@ -207,13 +189,13 @@ if __name__ == "__main__":
 
         print "Transcoded '%s' in %.2f seconds" % (short_fname, total_time)
 
-    # print start message
+    # print transcode status
     number_word = "files" if len(flacfiles) != 1 else "file"
     print "Beginning transcode of %d %s..." % (len(flacfiles), number_word)
     overall_start_time = time.time()
 
-    # transcode all the found files, tracking whether we manually terminated
-    pool = mp.Pool(processes=1)
+    # transcode all the found files
+    pool = mp.Pool(processes=thread_count)
     terminated = False
     try:
         result = pool.map_async(transcode_with_printout, flacfiles)
@@ -230,7 +212,7 @@ if __name__ == "__main__":
         pool.join()
 
     overall_time = time.time() - overall_start_time
-    if not terminated:
-        print "Completed transcode in %.2f seconds" % overall_time
-    else:
+    if terminated:
         print "Terminated transcode after %.2f seconds" % overall_time
+    else:
+        print "Completed transcode in %.2f seconds" % overall_time
