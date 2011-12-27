@@ -150,7 +150,8 @@ if __name__ == "__main__":
             flacfiles.append(f)
 
     # remove all non-flac files from the list
-    is_flac_file = lambda x: get_filetype(x).count("audio/x-flac") > 0
+    flac_filetype = "audio/x-flac"
+    is_flac_file = lambda x: get_filetype(x).count(flac_filetype) > 0
     flacfiles = filter(is_flac_file, flacfiles)
 
     # remove duplicates and sort
