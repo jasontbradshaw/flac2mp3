@@ -144,9 +144,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("files", metavar="FILES", type=str, nargs="+",
             help="Files and/or directories to transcode")
-    parser.add_argument("-o", "--output-dir",
+    parser.add_argument("-o", "--output-dir", type=os.path.abspath,
             help="Directory to output transcoded files to")
     args = parser.parse_args()
+
+    # ensure the output directory exists
+    if args.output_dir is not None:
+        try:
+            os.makedirs(args.output_dir)
+        except OSError, o:
+            # give up if the error DOESN'T indicate that the dir exists
+            if o.errno != 17:
+                print "Couldn't create directory '" + args.output_dir + "'"
+                sys.exit(1)
 
     # add all the files/directories in the args recursively
     print "Enumerating files..."
@@ -164,6 +174,10 @@ if __name__ == "__main__":
 
     # remove duplicates and sort
     flacfiles = sorted(set(flacfiles))
+
+    # get the common prefix of all the files so we can preserve directory
+    # structure when an output directory is specified.
+    common_prefix = os.path.dirname(os.path.commonprefix(flacfiles))
 
     # get the number of threads we should use while transcoding (usually the
     # number of processors, or 1 if that number can't be determined).
@@ -184,7 +198,23 @@ if __name__ == "__main__":
 
         # time the transcode
         start_time = time.time()
-        transcode(f)
+
+        # assign the output directory
+        outfile = None
+        if args.output_dir is not None:
+            mp3file = get_changed_file_ext(f, ".mp3")
+            outfile = os.path.join(args.output_dir,
+                    mp3file.replace(common_prefix, "").strip("/"))
+
+            # make the directory to ensure it exists
+            try:
+                os.makedirs(os.path.dirname(outfile))
+            except OSError, o:
+                # lame takes care of other error messages
+                pass
+
+        transcode(f, outfile)
+
         total_time = time.time() - start_time
 
         print "Transcoded '%s' in %.2f seconds" % (short_fname, total_time)
