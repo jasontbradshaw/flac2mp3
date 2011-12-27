@@ -6,6 +6,24 @@ import subprocess as sp
 import sys
 import multiprocessing as mp
 
+def try_communicate(process, message=None):
+    """
+    Wraps a call to Popen.communicate to catch KeyboardInterrupt
+    exceptions, and returns None if one was caught. If message is not None,
+    passes the message in.
+
+    Prevents spewing horrible
+    stacktraces when interrupting during long communicate calls.
+    """
+
+    try:
+        if message is not None:
+            return process.communicate(message)[0]
+        else:
+            return process.communicate()[0]
+    except KeyboardInterrupt:
+        return None
+
 def get_changed_file_ext(fname, ext):
     """
     Transforms the given filename's extension to the given extension. 'ext' is
@@ -59,7 +77,7 @@ def get_filetype(fname):
 
     p_file = sp.Popen(file_args, stdout=sp.PIPE)
 
-    return p_file.communicate()[0]
+    return try_communicate(p_file)
 
 def transcode(infile, outfile=None):
     """
@@ -74,7 +92,7 @@ def transcode(infile, outfile=None):
     # string.
     flac_args = ["flac", "--silent", "-c", "-d", infile]
     p_flac = sp.Popen(flac_args, stdout=sp.PIPE)
-    flac_data = p_flac.communicate()[0]
+    flac_data = try_communicate(p_flac)
 
     # get a new file name for the mp3 if no output name was specified
     if outfile is None:
@@ -100,7 +118,7 @@ def transcode(infile, outfile=None):
     p_lame = sp.Popen(lame_args, stdin=sp.PIPE)
 
     # pass 'lame' the decoded sound data via stdin
-    p_lame.communicate(flac_data)
+    try_communicate(p_lame, flac_data)
 
 def get_tags(infile):
     """
@@ -112,7 +130,7 @@ def get_tags(infile):
     # get tag info text using 'metaflac'
     metaflac_args = ["metaflac", "--list", "--block-type=VORBIS_COMMENT", infile]
     p_metaflac = sp.Popen(metaflac_args, stdout=sp.PIPE)
-    metaflac_text = p_metaflac.communicate()[0]
+    metaflac_text = try_communicate(p_metaflac)
 
     # ensure all possible id3v2 tags start off with a default value
     tag_dict = {
@@ -195,9 +213,19 @@ if __name__ == "__main__":
 
     # transcode all the found files
     # TODO: handle Ctrl+C while mapping, currently becomes a broken zombie
-    pool = mp.Pool(processes=thread_count)
-    result = pool.map_async(transcode_with_printout, flacfiles)
-    result.get()
+    pool = mp.Pool(processes=1)
+    terminated = False
+    try:
+        result = pool.map_async(transcode_with_printout, flacfiles)
+        while not result.ready():
+            time.sleep(100)
+    except KeyboardInterrupt:
+        terminated = True
+        pool.terminate()
+        pool.join()
 
     overall_time = time.time() - overall_start_time
-    print "Completed transcode in %.2f seconds" % overall_time
+    if not terminated:
+        print "Completed transcode in %.2f seconds" % overall_time
+    else:
+        print "Terminated transcode after %.2f seconds" % overall_time
