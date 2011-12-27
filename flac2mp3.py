@@ -8,7 +8,7 @@ import multiprocessing as mp
 
 def get_changed_file_ext(fname, ext):
     """
-    Transforms the given filename's extension to the given extension.  'ext' is
+    Transforms the given filename's extension to the given extension. 'ext' is
     the new extension, 'fname' is the file name transformation is to be done on.
     """
 
@@ -61,11 +61,13 @@ def get_filetype(fname):
 
     return p_file.communicate()[0]
 
-def transcode(infile):
+def transcode(infile, outfile=None):
     """
     Transcodes a single flac file into a single mp3 file.  Preserves the file
-    name but changes the extension.  Copies flac tag info from the transcoded
-    file to the new file.
+    name but changes the extension.  Copies flac tag info from the original file
+    to the transcoded file. If outfile is specified, the file is saved to that
+    location, otherwise it's saved alongside the original file with the original
+    file name, extension changed to 'mp3'.
     """
 
     # get the decoded flac data from the given file using 'flac', saving it to a
@@ -74,8 +76,9 @@ def transcode(infile):
     p_flac = sp.Popen(flac_args, stdout=sp.PIPE)
     flac_data = p_flac.communicate()[0]
 
-    # get a new file name for the mp3 based on the input file's name
-    mp3_filename = get_changed_file_ext(infile, ".mp3")
+    # get a new file name for the mp3 if no output name was specified
+    if outfile is None:
+        outfile = get_changed_file_ext(infile, ".mp3")
 
     # get the tags from the input file
     flac_tags = get_tags(infile)
@@ -91,7 +94,7 @@ def transcode(infile):
             "--tc", flac_tags["COMMENT"],
             "--tn", flac_tags["TRACKNUMBER"] + "/" + flac_tags["TRACKTOTAL"],
             "--tg", flac_tags["GENRE"],
-            "-", mp3_filename]
+            "-", outfile]
 
     # encode the file using 'lame' and wait for it to finish
     p_lame = sp.Popen(lame_args, stdin=sp.PIPE)
