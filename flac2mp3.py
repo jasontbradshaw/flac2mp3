@@ -138,12 +138,20 @@ def get_tags(infile):
 
 if __name__ == "__main__":
     import time
+    import argparse
 
-    print "Enumerating files..."
+    # parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("files", metavar="FILES", type=str, nargs="+",
+            help="Files and/or directories to transcode")
+    parser.add_argument("-o", "--output-dir",
+            help="Directory to output transcoded files to")
+    args = parser.parse_args()
 
     # add all the files/directories in the args recursively
+    print "Enumerating files..."
     flacfiles = []
-    for f in sys.argv[1:]:
+    for f in args.files:
         if os.path.isdir(f):
             flacfiles.extend(walk_dir(f))
         else:
