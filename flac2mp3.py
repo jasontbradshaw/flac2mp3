@@ -207,18 +207,23 @@ if __name__ == "__main__":
 
         print "Transcoded '%s' in %.2f seconds" % (short_fname, total_time)
 
+    # print start message
     number_word = "files" if len(flacfiles) != 1 else "file"
     print "Beginning transcode of %d %s..." % (len(flacfiles), number_word)
     overall_start_time = time.time()
 
-    # transcode all the found files
-    # TODO: handle Ctrl+C while mapping, currently becomes a broken zombie
+    # transcode all the found files, tracking whether we manually terminated
     pool = mp.Pool(processes=1)
     terminated = False
     try:
         result = pool.map_async(transcode_with_printout, flacfiles)
-        while not result.ready():
-            time.sleep(100)
+        while 1:
+            # try to get the result until it arrives
+            try:
+                result.get(0.1)
+                break
+            except mp.TimeoutError:
+                continue
     except KeyboardInterrupt:
         terminated = True
         pool.terminate()
