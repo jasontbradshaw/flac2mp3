@@ -37,10 +37,8 @@ def walk_dir(d, follow_links=False):
     contents = []
     for root, dirs, files in os.walk(d, followlinks=follow_links):
         for name in files:
-            contents.append(os.path.join(root, name))
-
-    # normalize all file names
-    contents = map(os.path.abspath, contents)
+            # append the normalized file name
+            contents.append(os.path.abspath(os.path.join(root, name)))
 
     return contents
 
