@@ -82,7 +82,7 @@ def transcode(infile, outfile=None):
     flac_tags = get_tags(infile)
 
     # arguments for 'lame', including bitrate and tag values
-    bitrate = 320
+    bitrate = 256
     lame_args = ["lame", "-h", "-m", "s", "--cbr", "-b", str(bitrate),
             "--add-id3v2", "--silent",
             "--tt", flac_tags["TITLE"],
