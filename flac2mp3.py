@@ -95,6 +95,7 @@ def transcode(infile, outfile=None):
             "-", outfile]
 
     # encode the file using 'lame' and wait for it to finish
+    # TODO: handle LAME binary not being present
     p_lame = sp.Popen(lame_args, stdin=sp.PIPE)
 
     # pass 'lame' the decoded sound data via stdin
