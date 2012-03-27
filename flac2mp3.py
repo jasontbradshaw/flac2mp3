@@ -6,46 +6,26 @@ import subprocess as sp
 import sys
 import multiprocessing as mp
 
-def get_changed_file_ext(fname, ext):
-    """
-    Transforms the given filename's extension to the given extension. 'ext' is
-    the new extension, 'fname' is the file name transformation is to be done on.
-    """
-
-    # determine the new file name (old file name minus the extension if it had
-    # one, otherwise just the old file name with new extension added).
-    new_fname = fname
-
-    # if we have a file extension, strip the final one and get the base name
-    if len(fname.rsplit(".", 1)) == 2:
-        new_fname = fname.rsplit(".", 1)[0]
-
-    # add the new extension
-    new_fname += ext
-
-    return new_fname
+def change_file_ext(fname, ext):
+    """Transforms the given filename's extension to the given extension."""
+    return os.path.splitext(fname) + ext
 
 def walk_dir(d, follow_links=False):
     """
-    Returns all the file names in a given directory, including those in
+    Yields all the file names in a given directory, including those in
     subdirectories.  If 'follow_links' is True, symbolic links will be followed.
     This option can lead to infinite looping since the function doesn't keep
     track of which directories have been visited.
     """
 
     # walk the directory and collect the full path of every file therein
-    contents = []
     for root, dirs, files in os.walk(d, followlinks=follow_links):
         for name in files:
             # append the normalized file name
-            contents.append(os.path.abspath(os.path.join(root, name)))
-
-    return contents
+            yield os.path.abspath(os.path.join(root, name))
 
 def get_filetype(fname):
-    """
-    Gets the file type of the given file as a MIME string and returns it.
-    """
+    """Gets the file type of the given file as a MIME string and returns it."""
 
     # brief output, MIME version
     file_args = ["file", "-b"]
@@ -56,7 +36,6 @@ def get_filetype(fname):
     file_args.append(fname)
 
     p_file = sp.Popen(file_args, stdout=sp.PIPE)
-
     return p_file.communicate()[0]
 
 def transcode(infile, outfile=None):
@@ -64,19 +43,11 @@ def transcode(infile, outfile=None):
     Transcodes a single flac file into a single mp3 file.  Preserves the file
     name but changes the extension.  Copies flac tag info from the original file
     to the transcoded file. If outfile is specified, the file is saved to that
-    location, otherwise it's saved alongside the original file with the original
-    file name, extension changed to 'mp3'.
+    location, otherwise it's saved alongside the original file.
     """
 
-    # get the decoded flac data from the given file using 'flac', saving it to a
-    # string.
-    flac_args = ["flac", "--silent", "-c", "-d", infile]
-    p_flac = sp.Popen(flac_args, stdout=sp.PIPE)
-    flac_data = p_flac.communicate()[0]
-
     # get a new file name for the mp3 if no output name was specified
-    if outfile is None:
-        outfile = get_changed_file_ext(infile, ".mp3")
+    outfile = outfile or change_file_ext(infile, ".mp3")
 
     # get the tags from the input file
     flac_tags = get_tags(infile)
@@ -94,12 +65,18 @@ def transcode(infile, outfile=None):
             "--tg", flac_tags["GENRE"],
             "-", outfile]
 
-    # encode the file using 'lame' and wait for it to finish
-    # TODO: handle LAME binary not being present
-    p_lame = sp.Popen(lame_args, stdin=sp.PIPE)
+    # arguments for 'flac' decoding
+    flac_args = ["flac", "--silent", "-c", "-d", infile]
 
-    # pass 'lame' the decoded sound data via stdin
-    p_lame.communicate(flac_data)
+    # decode the flac data and pass it to lame
+    p_flac = sp.Popen(flac_args, stdout=sp.PIPE)
+    p_lame = sp.Popen(lame_args, stdin=p_flac.stdout)
+
+    # allow p_flac to receive a SIGPIPE if p_lame exits
+    p_flac.stdout.close()
+
+    # wait for the encoding to finish
+    p_lame.wait()
 
 def get_tags(infile):
     """
@@ -159,20 +136,16 @@ if __name__ == "__main__":
 
     # add all the files/directories in the args recursively
     print "Enumerating files..."
-    flacfiles = []
+    flacfiles = set()
     for f in args.files:
         if os.path.isdir(f):
-            flacfiles.extend(walk_dir(f))
+            flacfiles.update(walk_dir(f))
         else:
-            flacfiles.append(f)
+            flacfiles.add(f)
 
-    # remove all non-flac files from the list
-    flac_filetype = "audio/x-flac"
-    is_flac_file = lambda x: get_filetype(x).count(flac_filetype) > 0
-    flacfiles = filter(is_flac_file, flacfiles)
-
-    # remove duplicates and sort
-    flacfiles = sorted(set(flacfiles))
+    # remove all non-flac files from the list and sort
+    is_flac_file = lambda x: get_filetype(x).count("audio/x-flac") > 0
+    flacfiles = sorted(filter(is_flac_file, flacfiles))
 
     # get the common prefix of all the files so we can preserve directory
     # structure when an output directory is specified.
@@ -187,9 +160,7 @@ if __name__ == "__main__":
         pass
 
     def transcode_with_printout(f):
-        """
-        Transcode the given file and print out progress statistics.
-        """
+        """Transcode the given file and print out progress statistics."""
 
         # a more compact file name relative to the current directory
         short_fname = os.path.relpath(f)
@@ -201,7 +172,7 @@ if __name__ == "__main__":
         # assign the output directory
         outfile = None
         if args.output_dir is not None:
-            mp3file = get_changed_file_ext(f, ".mp3")
+            mp3file = change_file_ext(f, ".mp3")
             outfile = os.path.join(args.output_dir,
                     mp3file.replace(common_prefix, "").strip("/"))
 
@@ -226,12 +197,13 @@ if __name__ == "__main__":
     # transcode all the found files
     pool = mp.Pool(processes=thread_count)
     terminated = False
+    succeeded = False
     try:
         result = pool.map_async(transcode_with_printout, flacfiles)
         while 1:
-            # try to get the result until it arrives
             try:
                 result.get(0.1)
+                succeeded = True
                 break
             except mp.TimeoutError:
                 continue
@@ -239,9 +211,16 @@ if __name__ == "__main__":
         terminated = True
         pool.terminate()
         pool.join()
+    except Exception, e:
+        # catch all other exceptions gracefully
+        print e
+        break
 
+    # print our exit status/condition
     overall_time = time.time() - overall_start_time
     if terminated:
-        print "Terminated transcode after %.2f seconds" % overall_time
-    else:
+        print "User terminated transcode after %.2f seconds" % overall_time
+    elif succeeded:
         print "Completed transcode in %.2f seconds" % overall_time
+    else:
+        print "Transcode failed after %.2f seconds" % overall_time
