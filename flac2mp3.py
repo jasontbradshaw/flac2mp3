@@ -6,6 +6,24 @@ import subprocess as sp
 import sys
 import multiprocessing as mp
 
+def get_missing_programs(required_programs):
+    """Gets a list of required programs that can't be found on the system."""
+
+    # try to launch the programs, and add them to a list if they're not found
+    missing = []
+    for program in required_programs:
+        try:
+            sp.call(program, stdout=sp.PIPE, stderr=sp.STDOUT)
+        except OSError, e:
+            # if the binary couldn't be found, put it in the list
+            if e.errno == 2:
+                missing.append(program)
+            else:
+                # propogate other errors
+                raise
+
+    return missing
+
 def change_file_ext(fname, ext):
     """Transforms the given filename's extension to the given extension."""
     return os.path.splitext(fname)[0] + ext
@@ -124,15 +142,21 @@ if __name__ == "__main__":
             help="Directory to output transcoded files to")
     args = parser.parse_args()
 
+    # ensure we have all our required programs
+    missing_progs = get_missing_programs(["lame", "file", "flac", "metaflac"])
+    if len(missing_progs) > 0:
+        print "The following programs are required: " + ", ".join(missing_progs)
+        sys.exit(1)
+
     # ensure the output directory exists
     if args.output_dir is not None:
         try:
             os.makedirs(args.output_dir)
-        except OSError, o:
+        except OSError, e:
             # give up if the error DOESN'T indicate that the dir exists
-            if o.errno != 17:
+            if e.errno != 17:
                 print "Couldn't create directory '" + args.output_dir + "'"
-                sys.exit(1)
+                sys.exit(2)
 
     # add all the files/directories in the args recursively
     print "Enumerating files..."
