@@ -83,8 +83,8 @@ def transcode(infile, outfile=None):
             "--tg", flac_tags["GENRE"],
             "-", outfile]
 
-    # arguments for 'flac' decoding
-    flac_args = ["flac", "--silent", "-c", "-d", infile]
+    # arguments for 'flac' decoding to be piped to 'lame'
+    flac_args = ["flac", "--silent", "--stdout", "--decode", infile]
 
     # decode the flac data and pass it to lame
     p_flac = sp.Popen(flac_args, stdout=sp.PIPE)
