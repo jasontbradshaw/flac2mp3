@@ -8,7 +8,7 @@ import multiprocessing as mp
 
 def change_file_ext(fname, ext):
     """Transforms the given filename's extension to the given extension."""
-    return os.path.splitext(fname) + ext
+    return os.path.splitext(fname)[0] + ext
 
 def walk_dir(d, follow_links=False):
     """
