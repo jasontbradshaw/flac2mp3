@@ -214,7 +214,6 @@ if __name__ == "__main__":
     except Exception, e:
         # catch all other exceptions gracefully
         print e
-        break
 
     # print our exit status/condition
     overall_time = time.time() - overall_start_time
