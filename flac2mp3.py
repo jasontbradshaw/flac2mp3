@@ -167,9 +167,9 @@ if __name__ == "__main__":
         else:
             flacfiles.add(f)
 
-    # remove all non-flac files from the list and sort
+    # remove all non-flac files from the list
     is_flac_file = lambda x: get_filetype(x).count("audio/x-flac") > 0
-    flacfiles = sorted(filter(is_flac_file, flacfiles))
+    flacfiles = filter(is_flac_file, flacfiles)
 
     # get the common prefix of all the files so we can preserve directory
     # structure when an output directory is specified.
