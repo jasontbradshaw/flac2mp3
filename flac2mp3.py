@@ -249,9 +249,12 @@ if __name__ == "__main__":
 
     # print our exit status/condition
     overall_time = time.time() - overall_start_time
-    if terminated:
-        print "User terminated transcode after %.2f seconds" % overall_time
-    elif succeeded:
+    if succeeded:
         print "Completed transcode in %.2f seconds" % overall_time
+        sys.exit(0)
+    elif terminated:
+        print "User terminated transcode after %.2f seconds" % overall_time
+        sys.exit(3)
     else:
         print "Transcode failed after %.2f seconds" % overall_time
+        sys.exit(4)
