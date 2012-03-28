@@ -56,18 +56,24 @@ def get_filetype(fname):
     p_file = sp.Popen(file_args, stdout=sp.PIPE)
     return p_file.communicate()[0]
 
-def transcode(infile, outfile=None, skip_existing=False):
+def transcode(infile, outfile=None, skip_existing=False, bad_chars=""):
     """
     Transcodes a single flac file into a single mp3 file.  Preserves the file
     name but changes the extension.  Copies flac tag info from the original file
     to the transcoded file. If outfile is specified, the file is saved to that
-    location, otherwise it's saved alongside the original file. If
-    skip_existing is False (the default), overwrites existing files with the
-    same name as outfile, otherwise skips the file completely.
+    location, otherwise it's saved alongside the original file. If skip_existing
+    is False (the default), overwrites existing files with the same name as
+    outfile, otherwise skips the file completely. bad_chars is a collection of
+    characters that should be removed from the output file name.  Returns the
+    returncode of the lame process.
     """
 
     # get a new file name for the mp3 if no output name was specified
     outfile = outfile or change_file_ext(infile, ".mp3")
+
+    # replace incompatible filename characters in output file
+    for c in bad_chars:
+        outfile = outfile.replace(c, "")
 
     # skip transcoding existing files if specified
     if skip_existing and os.path.exists(outfile):
@@ -100,7 +106,7 @@ def transcode(infile, outfile=None, skip_existing=False):
     p_flac.stdout.close()
 
     # wait for the encoding to finish
-    p_lame.wait()
+    return p_lame.wait()
 
 def get_tags(infile):
     """
@@ -155,6 +161,9 @@ if __name__ == "__main__":
             help="Log output to a file as well as to the console.")
     parser.add_argument("-q", "--quiet", action="store_true",
             help="Disable console output.")
+    parser.add_argument("-n", "--num-threads", type=int, default=mp.cpu_count(),
+            help="The number of threads to use for transcoding. Defaults " +
+            "to the number of CPUs on the machine.")
     args = parser.parse_args()
 
     # set log level and format
@@ -203,22 +212,18 @@ if __name__ == "__main__":
             flacfiles.update(walk_dir(f))
         else:
             flacfiles.add(f)
+    log.info("Found " + str(len(flacfiles)) + " files")
 
     # remove all non-flac files from the list
+    log.info("Removing non-FLAC files...")
+    old_len = len(flacfiles)
     is_flac_file = lambda x: get_filetype(x).count("audio/x-flac") > 0
     flacfiles = filter(is_flac_file, flacfiles)
+    log.info("Removed " + str(old_len - len(flacfiles)) + " files")
 
     # get the common prefix of all the files so we can preserve directory
     # structure when an output directory is specified.
     common_prefix = os.path.dirname(os.path.commonprefix(flacfiles))
-
-    # get the number of threads we should use while transcoding (usually the
-    # number of processors, or 1 if that number can't be determined).
-    thread_count = 1
-    try:
-        thread_count = mp.cpu_count()
-    except NotImplementedError:
-        pass
 
     def transcode_with_logging(f):
         """Transcode the given file and print out progress statistics."""
@@ -244,27 +249,34 @@ if __name__ == "__main__":
                 # lame takes care of other error messages
                 pass
 
-        transcode(f, outfile, skip_existing=args.skip_existing)
-
+        # store the return code of the process so we can see if it errored
+        retcode = transcode(f, outfile, args.skip_existing, ":")
         total_time = time.time() - start_time
 
-        log.info("Transcoded '%s' in %.2f seconds" % (short_fname,
-            total_time))
+        # log success or error
+        if retcode == 0:
+            log.info("Transcoded '%s' in %.2f seconds" % (short_fname,
+                total_time))
+        else:
+            log.error("Failed to transcode '%s' after %.2f seconds" %
+                    (short_fname, total_time))
 
-    # print transcode status
-    number_word = "files" if len(flacfiles) != 1 else "file"
-    log.info("Beginning transcode of %d %s..." % (len(flacfiles),
-        number_word))
+    # log transcode status
+    log.info("Beginning transcode of %d file%s..." % (len(flacfiles),
+            "s" if len(flacfiles) != 1 else ""))
     overall_start_time = time.time()
 
+    # build a thread pool for transcoding
+    pool = mp.Pool(processes=args.num_threads)
+
     # transcode all the found files
-    pool = mp.Pool(processes=thread_count)
     terminated = False
     succeeded = False
     try:
         result = pool.map_async(transcode_with_logging, flacfiles)
         while 1:
             try:
+                # wait for the result to come in, and mark success once it does
                 result.get(0.1)
                 succeeded = True
                 break
@@ -275,10 +287,10 @@ if __name__ == "__main__":
         pool.terminate()
         pool.join()
     except Exception, e:
-        # catch all other exceptions gracefully
+        # catch and log all other exceptions gracefully
         log.exception(e)
 
-    # print our exit status/condition
+    # log our exit status/condition
     overall_time = time.time() - overall_start_time
     if succeeded:
         log.info("Completed transcode in %.2f seconds" % overall_time)
