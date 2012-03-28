@@ -145,11 +145,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("files", metavar="FILES", type=str, nargs="+",
             help="Files and/or directories to transcode")
+
+    # options and flags
     parser.add_argument("-o", "--output-dir", type=os.path.abspath,
             help="Directory to output transcoded files to")
-    parser.add_argument("--skip-existing", action="store_true",
+    parser.add_argument("-s", "--skip-existing", action="store_true",
             help="Skip transcoding files if the output file already exists")
-    parser.add_argument("--logfile", type=os.path.normpath, default=None,
+    parser.add_argument("-l", "--logfile", type=os.path.normpath, default=None,
             help="Log output to a file as well as to the console.")
     parser.add_argument("-q", "--quiet", action="store_true",
             help="Disable console output.")
