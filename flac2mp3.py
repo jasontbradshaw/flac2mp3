@@ -137,6 +137,7 @@ def get_tags(infile):
     return tag_dict
 
 if __name__ == "__main__":
+    import logging
     import time
     import argparse
 
@@ -148,12 +149,38 @@ if __name__ == "__main__":
             help="Directory to output transcoded files to")
     parser.add_argument("--skip-existing", action="store_true",
             help="Skip transcoding files if the output file already exists")
+    parser.add_argument("--logfile", type=os.path.normpath, default=None,
+            help="Log output to a file as well as to the console.")
+    parser.add_argument("-q", "--quiet", action="store_true",
+            help="Disable console output.")
     args = parser.parse_args()
 
+    # set log level and format
+    log = logging.getLogger("flac2mp3")
+    log.setLevel(logging.INFO)
+
+    # prevent 'no loggers found' warning
+    log.addHandler(logging.NullHandler())
+
+    # custom log formatting
+    formatter = logging.Formatter("[%(levelname)s] %(message)s")
+
+    # log to stderr unless disabled
+    if not args.quiet:
+        sh = logging.StreamHandler()
+        sh.setFormatter(formatter)
+        log.addHandler(sh)
+
+    # add a file handler if specified
+    if args.logfile is not None:
+        fh = logging.FileHandler(args.logfile)
+        fh.setFormatter(formatter)
+        log.addHandler(fh)
+
     # ensure we have all our required programs
-    missing_progs = get_missing_programs(["lame", "file", "flac", "metaflac"])
-    if len(missing_progs) > 0:
-        print "The following programs are required: " + ", ".join(missing_progs)
+    missing = get_missing_programs(["lame", "file", "flac", "metaflac"])
+    if len(missing) > 0:
+        log.critical("The following programs are required: " + ",".join(missing))
         sys.exit(1)
 
     # ensure the output directory exists
@@ -163,11 +190,11 @@ if __name__ == "__main__":
         except OSError, e:
             # give up if the error DOESN'T indicate that the dir exists
             if e.errno != 17:
-                print "Couldn't create directory '" + args.output_dir + "'"
+                log.error("Couldn't create directory '%s'" % args.output_dir)
                 sys.exit(2)
 
     # add all the files/directories in the args recursively
-    print "Enumerating files..."
+    log.info("Enumerating files...")
     flacfiles = set()
     for f in args.files:
         if os.path.isdir(f):
@@ -191,12 +218,12 @@ if __name__ == "__main__":
     except NotImplementedError:
         pass
 
-    def transcode_with_printout(f):
+    def transcode_with_logging(f):
         """Transcode the given file and print out progress statistics."""
 
         # a more compact file name representation
         short_fname = os.path.basename(f)
-        print "Transcoding '%s'..." % short_fname
+        log.info("Transcoding '%s'..." % short_fname)
 
         # time the transcode
         start_time = time.time()
@@ -219,11 +246,13 @@ if __name__ == "__main__":
 
         total_time = time.time() - start_time
 
-        print "Transcoded '%s' in %.2f seconds" % (short_fname, total_time)
+        log.info("Transcoded '%s' in %.2f seconds" % (short_fname,
+            total_time))
 
     # print transcode status
     number_word = "files" if len(flacfiles) != 1 else "file"
-    print "Beginning transcode of %d %s..." % (len(flacfiles), number_word)
+    log.info("Beginning transcode of %d %s..." % (len(flacfiles),
+        number_word))
     overall_start_time = time.time()
 
     # transcode all the found files
@@ -231,7 +260,7 @@ if __name__ == "__main__":
     terminated = False
     succeeded = False
     try:
-        result = pool.map_async(transcode_with_printout, flacfiles)
+        result = pool.map_async(transcode_with_logging, flacfiles)
         while 1:
             try:
                 result.get(0.1)
@@ -245,16 +274,17 @@ if __name__ == "__main__":
         pool.join()
     except Exception, e:
         # catch all other exceptions gracefully
-        print e
+        log.exception(e)
 
     # print our exit status/condition
     overall_time = time.time() - overall_start_time
     if succeeded:
-        print "Completed transcode in %.2f seconds" % overall_time
+        log.info("Completed transcode in %.2f seconds" % overall_time)
         sys.exit(0)
     elif terminated:
-        print "User terminated transcode after %.2f seconds" % overall_time
+        log.info("User terminated transcode after %.2f seconds" %
+                overall_time)
         sys.exit(3)
     else:
-        print "Transcode failed after %.2f seconds" % overall_time
+        log.info("Transcode failed after %.2f seconds" % overall_time)
         sys.exit(4)
