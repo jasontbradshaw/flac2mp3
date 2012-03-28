@@ -56,16 +56,22 @@ def get_filetype(fname):
     p_file = sp.Popen(file_args, stdout=sp.PIPE)
     return p_file.communicate()[0]
 
-def transcode(infile, outfile=None):
+def transcode(infile, outfile=None, skip_existing=False):
     """
     Transcodes a single flac file into a single mp3 file.  Preserves the file
     name but changes the extension.  Copies flac tag info from the original file
     to the transcoded file. If outfile is specified, the file is saved to that
-    location, otherwise it's saved alongside the original file.
+    location, otherwise it's saved alongside the original file. If
+    skip_existing is False (the default), overwrites existing files with the
+    same name as outfile, otherwise skips the file completely.
     """
 
     # get a new file name for the mp3 if no output name was specified
     outfile = outfile or change_file_ext(infile, ".mp3")
+
+    # skip transcoding existing files if specified
+    if skip_existing and os.path.exists(outfile):
+        return
 
     # get the tags from the input file
     flac_tags = get_tags(infile)
@@ -140,6 +146,8 @@ if __name__ == "__main__":
             help="Files and/or directories to transcode")
     parser.add_argument("-o", "--output-dir", type=os.path.abspath,
             help="Directory to output transcoded files to")
+    parser.add_argument("--skip-existing", action="store_true",
+            help="Skip transcoding files if the output file already exists")
     args = parser.parse_args()
 
     # ensure we have all our required programs
@@ -207,7 +215,7 @@ if __name__ == "__main__":
                 # lame takes care of other error messages
                 pass
 
-        transcode(f, outfile)
+        transcode(f, outfile, skip_existing=args.skip_existing)
 
         total_time = time.time() - start_time
 
