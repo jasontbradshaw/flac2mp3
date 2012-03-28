@@ -186,8 +186,8 @@ if __name__ == "__main__":
     def transcode_with_printout(f):
         """Transcode the given file and print out progress statistics."""
 
-        # a more compact file name relative to the current directory
-        short_fname = os.path.relpath(f)
+        # a more compact file name representation
+        short_fname = os.path.basename(f)
         print "Transcoding '%s'..." % short_fname
 
         # time the transcode
