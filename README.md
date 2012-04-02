@@ -8,10 +8,10 @@ files while preserving any id3 tags found.
 
 Process
 ----
-THe utility walks the given files and/or directories and collects all the FLAC
+The utility walks the given files and/or directories and collects all the FLAC
 files it finds, them passes them through `flac` to decode them, piping the
 output through `lame` to re-encode them, and stores them in the output directory
-intelligently using the nearest comment ancestory directory as a template to
+intelligently using the nearest comment ancestor directory as a template to
 ensure they don't end up lumped illogically in the output directory.
 
 Simple Usage
