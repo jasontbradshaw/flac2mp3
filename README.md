@@ -6,11 +6,13 @@ MP3 files, namely `flac`, `metaflac`, and `lame` (all of which it assumes are
 installed). It uses multiple cores to simultaneously re-encode FLAC files as MP3
 files while preserving any id3 tags found.
 
+Supported Platforms
+----
 `flac2mp3` has been tested on Snow Leopard and Ubuntu Linux, but should work on
 any environment that interfaces with Python's `subprocess` module and exposes
 the required programs to the script.
 
-Process
+How it Works
 ----
 The utility walks the given files and/or directories and collects all the FLAC
 files it finds, them passes them through `flac` to decode them, piping the
