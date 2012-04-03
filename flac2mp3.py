@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import itertools
 import os
 import re
 import subprocess as sp
@@ -42,8 +43,13 @@ def walk_dir(d, follow_links=False):
             # append the normalized file name
             yield os.path.abspath(os.path.join(root, name))
 
-def get_filetype(fname):
-    """Gets the file type of the given file as a MIME string and returns it."""
+def get_filetypes(*fnames):
+    """
+    Takes one or more file names and returns a list of their MIME types.
+    """
+
+    if len(fnames) < 1:
+        raise ValueError("must provide at least one file name")
 
     # brief output, MIME version
     file_args = ["file", "-b"]
@@ -51,10 +57,11 @@ def get_filetype(fname):
         file_args.append("-I")
     else:
         file_args.append("-i")
-    file_args.append(fname)
+    file_args.extend(fnames)
 
+    # return one item per line
     p_file = sp.Popen(file_args, stdout=sp.PIPE)
-    return p_file.communicate()[0]
+    return p_file.communicate()[0].split("\n"):
 
 def transcode(infile, outfile=None, skip_existing=False, bad_chars=""):
     """
@@ -206,20 +213,22 @@ if __name__ == "__main__":
 
     # add all the files/directories in the args recursively
     log.info("Enumerating files...")
-    flacfiles = set()
+    files = set()
     for f in args.files:
         if os.path.isdir(f):
-            flacfiles.update(walk_dir(f))
+            files.update(walk_dir(f))
         else:
-            flacfiles.add(f)
-    log.info("Found " + str(len(flacfiles)) + " files")
+            files.add(f)
+    log.info("Found " + str(len(files)) + " files")
 
     # remove all non-flac files from the list
     log.info("Removing non-FLAC files...")
-    old_len = len(flacfiles)
-    is_flac_file = lambda x: get_filetype(x).count("audio/x-flac") > 0
-    flacfiles = filter(is_flac_file, flacfiles)
-    log.info("Removed " + str(old_len - len(flacfiles)) + " files")
+
+    # get all the MIME types at once, then filter the pairs
+    is_flac = lambda f: f.count("audio/x-flac") > 0
+    flacfiles = itertools.compress(files, map(is_flac, get_filetypes(*files)))
+
+    log.info("Removed " + str(len(files) - len(flacfiles)) + " files")
 
     # get the common prefix of all the files so we can preserve directory
     # structure when an output directory is specified.
