@@ -271,8 +271,7 @@ if __name__ == "__main__":
                     (short_fname, total_time))
 
     # log transcode status
-    log.info("Beginning transcode of %d file%s..." % (len(flacfiles),
-            "s" if len(flacfiles) != 1 else ""))
+    log.info("Beginning transcode of %d files..." % len(flacfiles))
     overall_start_time = time.time()
 
     # build a thread pool for transcoding
