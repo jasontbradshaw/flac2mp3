@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import itertools
+from itertools import compress
 import os
 import re
 import subprocess as sp
@@ -61,7 +61,7 @@ def get_filetypes(*fnames):
 
     # return one item per line
     p_file = sp.Popen(file_args, stdout=sp.PIPE)
-    return p_file.communicate()[0].split("\n"):
+    return p_file.communicate()[0].split("\n")
 
 def transcode(infile, outfile=None, skip_existing=False, bad_chars=""):
     """
@@ -226,7 +226,7 @@ if __name__ == "__main__":
 
     # get all the MIME types at once, then filter the pairs
     is_flac = lambda f: f.count("audio/x-flac") > 0
-    flacfiles = itertools.compress(files, map(is_flac, get_filetypes(*files)))
+    flacfiles = [f for f in compress(files, map(is_flac, get_filetypes(*files)))]
 
     log.info("Removed " + str(len(files) - len(flacfiles)) + " files")
 
