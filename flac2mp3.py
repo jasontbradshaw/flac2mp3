@@ -145,7 +145,7 @@ def get_tags(infile):
 
     # get the comment data from the obtained text
     for t in re.findall(pattern, metaflac_text):
-        tag_dict[t[0]] = t[1]
+        tag_dict[t[0].upper()] = t[1]
 
     return tag_dict
 
