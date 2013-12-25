@@ -245,6 +245,7 @@ if __name__ == "__main__":
 
         # copy any non-FLAC files to the output dir if they match a pattern
         if 'audio/x-flac' not in get_filetype(f):
+            if args.output_dir is not None and args.copy_pattern is not None:
             if args.output_dir is not None:
                 match = args.copy_pattern.search(f)
                 if match is not None:
