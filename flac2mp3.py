@@ -7,6 +7,7 @@ import shutil
 import subprocess as sp
 import sys
 import multiprocessing as mp
+import tempfile
 
 def get_missing_programs(required_programs):
     """Gets a list of required programs that can't be found on the system."""
@@ -99,6 +100,14 @@ def transcode(infile, outfile=None, skip_existing=False, bad_chars=""):
     if skip_existing and os.path.exists(outfile):
         return
 
+    # use a temp file to store the incremental in-flight transcode
+    # this file will be moved to the final output filename when transcode is complete
+    # this approach prevents partial or interrupted transcodes from getting in the way of
+    # --skip-existing
+    # create the temporary file in the same dir (and same filesystem) as the final target.
+    # This allows us to use os.link rather than shutil.move later
+    temp_outfile = tempfile.NamedTemporaryFile( dir=os.path.dirname(outfile), suffix=".tmp" )
+
     # get the tags from the input file
     flac_tags = get_tags(infile)
 
@@ -113,20 +122,28 @@ def transcode(infile, outfile=None, skip_existing=False, bad_chars=""):
             "--tc", flac_tags["COMMENT"],
             "--tn", flac_tags["TRACKNUMBER"] + "/" + flac_tags["TRACKTOTAL"],
             "--tg", flac_tags["GENRE"],
-            "-", outfile]
+            "-", "-" ]
 
     # arguments for 'flac' decoding to be piped to 'lame'
     flac_args = ["flac", "--silent", "--stdout", "--decode", infile]
 
     # decode the 'flac' data and pass it to 'lame'
+    # pass the lame encoding to our temp file
     p_flac = sp.Popen(flac_args, stdout=sp.PIPE)
-    p_lame = sp.Popen(lame_args, stdin=p_flac.stdout)
+    p_lame = sp.Popen(lame_args, stdin=p_flac.stdout, stdout = temp_outfile )
 
     # allow p_flac to receive a SIGPIPE if p_lame exits
     p_flac.stdout.close()
 
     # wait for the encoding to finish
-    return p_lame.wait()
+    r = p_lame.wait()
+
+    if r == 0:
+        # transcode successful
+        # link up our temp file to our final filename
+        os.link(temp_outfile.name, outfile)
+    temp_outfile.close() # deletes temp file reference
+    return r
 
 def get_tags(infile):
     """
@@ -245,7 +262,7 @@ if __name__ == "__main__":
 
         # copy any non-FLAC files to the output dir if they match a pattern
         if 'audio/x-flac' not in get_filetype(f):
-            if args.output_dir is not None:
+            if args.output_dir is not None and args.copy_pattern is not None:
                 match = args.copy_pattern.search(f)
                 if match is not None:
                     dest = os.path.join(args.output_dir,
