@@ -15,9 +15,9 @@ the required programs to the script.
 How it Works
 ----
 The utility walks the given files and/or directories and collects all the FLAC
-files it finds, them passes them through `flac` to decode them, piping the
+files it finds, then passes them through `flac` to decode them, piping the
 output through `lame` to re-encode them, and stores them in the output directory
-intelligently using the nearest comment ancestor directory as a template to
+intelligently using the nearest common ancestor directory as a template to
 ensure they don't end up lumped illogically in the output directory.
 
 Simple Usage
