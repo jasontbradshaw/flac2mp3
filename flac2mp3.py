@@ -17,7 +17,7 @@ def get_missing_programs(required_programs):
     for program in required_programs:
         try:
             sp.call(program, stdout=sp.PIPE, stderr=sp.STDOUT)
-        except OSError, e:
+        except OSError as e:
             # if the binary couldn't be found, put it in the list
             if e.errno == 2:
                 missing.append(program)
@@ -37,7 +37,7 @@ def ensure_directory(d, ignore_errors=False):
     try:
         os.makedirs(d)
         return True
-    except OSError, e:
+    except OSError as e:
         # propogate the error if it DOESN'T indicate that the directory already
         # exists.
         if e.errno != 17 and not ignore_errors:
@@ -75,7 +75,7 @@ def get_filetype(fname):
 
     # return one item per line
     p_file = sp.Popen(file_args, stdout=sp.PIPE)
-    return p_file.communicate()[0].strip()
+    return p_file.communicate()[0].strip().decode('utf-8')
 
 def transcode(infile, outfile=None, skip_existing=False, bad_chars=''):
     '''
@@ -155,7 +155,7 @@ def get_tags(infile):
     # get tag info text using 'metaflac'
     metaflac_args = ['metaflac', '--list', '--block-type=VORBIS_COMMENT', infile]
     p_metaflac = sp.Popen(metaflac_args, stdout=sp.PIPE)
-    metaflac_text = p_metaflac.communicate()[0]
+    metaflac_text = p_metaflac.communicate()[0].decode('utf-8')
 
     # ensure all possible id3v2 tags start off with a default value
     tag_dict = {
@@ -171,7 +171,7 @@ def get_tags(infile):
 
     # matches all lines like 'comment[0]: TITLE=Misery' and extracts them to
     # tuples like ('TITLE', 'Misery'), then stores them in a dict.
-    pattern = '\s+comment\[\d+\]:\s+([^=]+)=([^\n]+)\n'
+    pattern = r"\s+comment\[\d+\]:\s+([^=]+)=([^\n]+)\n"
 
     # get the comment data from the obtained text
     for name, value in re.findall(pattern, metaflac_text):
@@ -238,7 +238,7 @@ if __name__ == '__main__':
     if args.output_dir is not None:
         try:
             ensure_directory(args.output_dir)
-        except OSError, e:
+        except OSError as e:
             log.error("Couldn't create directory '%s'" % args.output_dir)
 
     # add all the files/directories in the args recursively
@@ -253,7 +253,7 @@ if __name__ == '__main__':
 
     # get the common prefix of all the files so we can preserve directory
     # structure when an output directory is specified.
-    common_prefix = os.path.dirname(os.path.commonprefix(files))
+    common_prefix = os.path.dirname(os.path.commonprefix(list(files)))
 
     def transcode_with_logging(f):
         '''Transcode the given file and print out progress statistics.'''
@@ -261,7 +261,7 @@ if __name__ == '__main__':
         short_fname = os.path.basename(f)
 
         # copy any non-FLAC files to the output dir if they match a pattern
-        if 'audio/x-flac' not in get_filetype(f):
+        if 'audio/flac' not in get_filetype(f):
             if args.output_dir is not None and args.copy_pattern is not None:
                 match = args.copy_pattern.search(f)
                 if match is not None:
@@ -272,7 +272,7 @@ if __name__ == '__main__':
                         shutil.copy(f, dest)
                         log.info("Copied '%s' ('%s' matched)", short_fname,
                                 match.group(0))
-                    except Exception, e:
+                    except Exception as e:
                         log.error("Failed to copy '%s' (%s)", short_fname,
                                 e.message)
 
@@ -310,7 +310,7 @@ if __name__ == '__main__':
             log.info("Transcoded '%s' in %.2f seconds" % (short_fname,
                 total_time))
         elif retcode == None:
-            log.info("Skipped '%s'", short_fname)
+            log.info("Did not transcode '%s'", short_fname)
         else:
             log.error("Failed to transcode '%s' after %.2f seconds" %
                     (short_fname, total_time))
@@ -339,7 +339,7 @@ if __name__ == '__main__':
         terminated = True
         pool.terminate()
         pool.join()
-    except Exception, e:
+    except Exception as e:
         # catch and log all other exceptions gracefully
         log.exception(e)
 
